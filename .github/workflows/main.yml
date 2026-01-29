@@ -1,0 +1,76 @@
+#This is my first workflow on GitHub Action
+
+name: CI
+# Controls when the action will run. It triggers the workflow on push/pull_requests
+
+# Events that will trigger my workflow on the main branch
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+  # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v5
+        
+      - name: setup ruby:3.4.7
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby:3.4.7
+
+      - name: Build
+        run: 
+          cd src/email
+   docker:
+     runs-on: ubuntu-latest
+     needs: build
+
+     steps:
+     - name: checkout code
+       uses: actions/checkout@v4
+
+    - name: Install docker
+      uses: docker/login-action@v3
+      with:
+        context: src/email
+        file: src/email/Dockerfile
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/email:${{github.run_id}}
+
+
+  updatek8s:
+    runs-on: ubuntu-latest
+
+    needs: docker
+
+    steps
+    name: checkout code
+          uses: actions/checkout@v4
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Update tag in kubernetes deployment manifest
+          run: | 
+               sed -i "s|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{github.run_id}}|" kubernetes/productcatalog/deploy.yaml
+        
+        - name: Commit and push changes
+          run: |
+            git config --global user.email "apharmvic@gmail.com"
+            git config --global user.name "Ahaoma Okwu"
+            git add kubernetes/email/deploy.yaml
+            git commit -m "[CI]: Update email image tag"
+            git push origin HEAD:main -f
+
+        
+        
+          
+
+
+        
+          
